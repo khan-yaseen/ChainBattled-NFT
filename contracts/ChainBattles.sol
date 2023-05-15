@@ -11,11 +11,19 @@ contract ChainBattles is ERC721URIStorage {
     using Strings for uint256;
     using Counters for Counters.Counter;
     Counters.Counter private _tokenIds;
-    mapping(uint256 => uint256) public tokenIdToLevels;
+    struct Meta {
+        uint256 level;
+        uint256 speed;
+        uint256 strength;
+        uint256 life;
+    }
+    mapping(uint256 => Meta) public tokenIdToLevels;
 
     constructor() ERC721("Chain Battles", "CBTLS") {}
 
-    function generateCharacter(uint256 tokenId) public view returns (string memory) {
+    function generateCharacter(
+        uint256 tokenId
+    ) public view returns (string memory) {
         bytes memory svg = abi.encodePacked(
             '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMin meet" viewBox="0 0 350 350">',
             "<style>.base { fill: white; font-family: serif; font-size: 14px; }</style>",
@@ -39,7 +47,7 @@ contract ChainBattles is ERC721URIStorage {
     }
 
     function getLevels(uint256 tokenId) public view returns (string memory) {
-        uint256 levels = tokenIdToLevels[tokenId];
+        uint256 levels = tokenIdToLevels[tokenId].level;
         return levels.toString();
     }
 
@@ -64,11 +72,34 @@ contract ChainBattles is ERC721URIStorage {
             );
     }
 
+    function random(uint number) public view returns (uint) {
+        return
+            uint(
+                keccak256(
+                    abi.encodePacked(
+                        block.timestamp,
+                        block.prevrandao,
+                        msg.sender
+                    )
+                )
+            ) % number;
+    }
+
+    function createRandom(uint number) public pure returns (uint) {
+        uint randomNumber = uint(keccak256(abi.encodePacked(number++)));
+        return randomNumber % 100; // Truncate to two digits
+    }
+
     function mint() public {
         _tokenIds.increment();
         uint256 newItemId = _tokenIds.current();
         _safeMint(msg.sender, newItemId);
-        tokenIdToLevels[newItemId] = 0;
+        tokenIdToLevels[newItemId] = Meta(
+            0,
+            random(newItemId),
+            random(newItemId),
+            random(newItemId)
+        );
         _setTokenURI(newItemId, getTokenURI(newItemId));
     }
 
@@ -78,8 +109,14 @@ contract ChainBattles is ERC721URIStorage {
             ownerOf(tokenId) == msg.sender,
             "You must own this token to train it"
         );
-        uint256 currentLevel = tokenIdToLevels[tokenId];
-        tokenIdToLevels[tokenId] = currentLevel + 1;
+        // uint256 currentLevel = tokenIdToLevels[tokenId];
+        // tokenIdToLevels[tokenId] = currentLevel + 1;
+        Meta storage meta = tokenIdToLevels[tokenId];
+        meta.level = meta.level + 1;
+        meta.speed = createRandom(meta.speed);
+        meta.strength = createRandom(meta.strength);
+        meta.life = createRandom(meta.life);
+        tokenIdToLevels[tokenId] = meta;
         _setTokenURI(tokenId, getTokenURI(tokenId));
     }
 }
